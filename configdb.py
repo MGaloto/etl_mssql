@@ -72,10 +72,10 @@ class ConfigDataBase():
 
         if self.checkLenLogs(self.logsConnection):
             self.writeLogs(self.logsConnection, "conn")
-            pprint.pprint(self.logsConnection[0])
+            pprint.pprint(self.logsConnection[-1])
         if self.checkLenLogs(self.logsDataBase):
             self.writeLogs(self.logsDataBase, "insert")
-            pprint.pprint(self.logsDataBase[0])
+            pprint.pprint(self.logsDataBase[-1])
 
 
 if __name__ == "__main__":

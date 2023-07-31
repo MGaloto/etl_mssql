@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from datetime import datetime
 import pprint
 import json
+import time
 
 load_dotenv()
 
@@ -19,8 +20,7 @@ class ETL():
         self.date = self.getDateNow()
         
     def getData(self):
-        data = pd.read_csv(
-            'https://adlssynapsetestfrancis.blob.core.windows.net/challenge/nuevas_filas.csv?sp=r&st=2023-04-20T15:25:12Z&se=2023-12-31T23:25:12Z&spr=https&sv=2021-12-02&sr=b&sig=MZIobvBY6c7ht%2FdFLhtyJ3MZgqa%2B75%2BY3YWntqL%2FStI%3D')
+        data = pd.read_csv(os.environ.get('URL'))
         return data
     
     def getDateNow(self):
@@ -29,6 +29,26 @@ class ETL():
         date = fecha_hora_actual.strftime(formato)[:-3]
         return date
     
+    def time_func(func):
+        def wrapper(*args, **kwargs):
+            start = time.time()
+            func(*args,**kwargs)
+            end = time.time()
+            print(f'Elapsed time: {(end - start)*1000:.3f}ms')
+        return wrapper
+    
+    @time_func
+    def insert_data(self, data, query, cursor):
+        count = 0
+        for valor in data:
+            count = count + 1
+            try:
+                cursor.executemany(query, [valor])
+            except Exception as e:
+                self.logsDataBase.append({self.date + str(count):str(e)})
+        return
+
+    @time_func
     def writeLogs(self, logs, type):
         new_date = self.date.replace(" ","").replace(":","").replace("-","")
         with open(f"logs/{new_date + type}.json", 'w') as archivo_json:
@@ -66,13 +86,7 @@ class ETL():
         """
 
         valores = [tuple(row) for row in df.values]
-        count = 0
-        for valor in valores:
-            count = count + 1
-            try:
-                cursor.executemany(query_insert, [valor])
-            except Exception as e:
-                self.logsDataBase.append({self.date + str(count):str(e)})
+        self.insert_data(valores, query_insert, cursor)
 
         total_registros_post = cursor.execute(f"""SELECT COUNT(*) AS TotalRegistros
         FROM {self.table};""").fetchall()[0][0]
@@ -83,10 +97,10 @@ class ETL():
 
         if self.checkLenLogs(self.logsConnection):
             self.writeLogs(self.logsConnection, "conn")
-            pprint.pprint(self.logsConnection[0])
+            pprint.pprint(self.logsConnection[-1])
         if self.checkLenLogs(self.logsDataBase):
             self.writeLogs(self.logsDataBase, "insert")
-            pprint.pprint(self.logsDataBase[0])
+            pprint.pprint(self.logsDataBase[-1])
 
 
 
